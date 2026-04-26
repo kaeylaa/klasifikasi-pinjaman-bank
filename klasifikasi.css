@@ -1,0 +1,35 @@
+/* Gradasi Background Halaman */
+body {
+  background: linear-gradient(to bottom, ivory,wheat, plum);  /* Gradasi dari peach ke biru */
+  color: #333; /* Warna teks agar tetap jelas */
+  font-family: Times New Roman, Times New Roman;
+}
+
+/* Styling untuk Kotak Output Kode */
+pre {
+  background: azure; /* Warna krem untuk output kode */
+  border: 2px solid chocolate; /* Garis tepi ungu */
+  padding: 10px;
+  border-radius: 8px; /* Membuat sudut agak melengkung */
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.4); /* Efek bayangan */
+  font-size: 14px;
+}
+
+/* Styling untuk Kotak Tabel Output */
+table {
+  background: #dff9fb; /* Warna biru muda */
+  border-collapse: collapse;
+  width: 100%;
+  border: 2px solid #0abde3; /* Garis tepi biru */
+}
+
+table th, table td {
+  padding: 10px;
+  border: 1px solid #0abde3;
+  text-align: left;
+}
+
+/* Warna latar belakang berbeda untuk baris genap agar lebih jelas */
+table tr:nth-child(even) {
+  background: #c7ecee;
+}
