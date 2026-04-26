@@ -1,4 +1,6 @@
-# 💳 Bank Loan Default Prediction  
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:2C3930,100:4F6F52&height=200&section=header&text=💳Bank%20Loan%20Default%20Prediction💳&fontSize=40&fontColor=ffffff"/>
+</p> 
 <p align="center">
   <i>Machine Learning Classification Project using R</i>
 </p>
