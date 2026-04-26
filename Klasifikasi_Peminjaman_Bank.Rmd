@@ -1,0 +1,547 @@
+---
+title: "Perbandingan Model Klasifikasi pada Data Pinjaman Bank"
+output:
+  html_document:
+    css: klasifikasi.css
+    theme: null
+---
+  
+```{r, message=FALSE, warning=FALSE}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(tidyr)
+library(nnet)
+library(caret)
+library(e1071)
+library(rpart)
+library(randomForest)
+library(kernlab)
+```
+
+## PENDAHULUAN 
+
+Dalam perbankan, risiko gagal bayar (default) merupakan salah satu permasalahan utama yang dapat mempengaruhi stabilitas keuangan. Oleh karena itu, diperlukan model prediksi yang mampu mengklasifikasikan nasabah berpotensi default secara akurat. Penelitian ini bertujuan untuk membandingkan performa beberapa metode machine learning, yaitu Artificial Neural Network (ANN), Support Vector Machine (SVM), Decision Tree, dan Random Forest dalam memprediksi status default nasabah.
+
+## IDENTIFIKASI DATA
+
+Dataset yang digunakan merupakan data pinjaman bank dengan variabel sebagai berikut:
+
+- Variabel independen: age, ed, employ, address, income, debtinc, creddebt, othdebt
+- Variabel dependen: default (0 = tidak, 1 = ya)
+
+
+# 1.1 Model Artificial Neural Network (ANN)
+
+```{r}
+# Input Data
+data_bank <- read_excel("C:/Users/asus/Downloads/data_pinjaman_bank.xlsx")       
+data_bank <- data.frame(data_bank)
+data_bank$default <- as.factor(data_bank$default)
+head(data_bank)
+```
+
+
+### Cleaning Data
+
+Memastikan dan melihat apakah didalam data_bank terdapat data NULL atau tidak.
+
+```{r}
+## Cleaning Data
+colSums(is.na(data_bank))
+```
+
+### Eksplorasi & Visualisasi Data
+
+Untuk melihat Distribusi Data dengan melakukan pengecekan ringkasan statistik menggunakan function "summary()".
+
+```{r}
+summary(data_bank)
+table(data_bank$default)
+```
+
+## Spliting Data 
+
+Pada tahap ini, data dibagi menjadi dua bagian, yaitu data training dan data testing, dengan perbandingan 80:20. Data training akan digunakan untuk melatih model, sedangkan data testing digunakan untuk mengukur performa model terhadap data yang belum pernah dilihat sebelumnya.
+
+```{r}
+set.seed(108)
+train_id <- sample(1:nrow(data_bank), 0.8 * nrow(data_bank))
+train_data_bank<- data_bank[train_id, ] # Data training
+test_data_bank<- data_bank[-train_id, ] # Data testing
+head(train_data_bank) # Data train
+head(test_data_bank) # Data testing
+train_data_bank$default <- as.factor(train_data_bank$default)
+test_data_bank$default <- as.factor(test_data_bank$default)
+```
+
+### Membuat Model ANN
+
+Membuat model Artificial Neural Network (ANN) dengan data yang digunakan adalah Data Pinjaman Bank
+
+```{r}
+## Membuat Model ANN
+ann_model <- nnet(default ~ age + ed + employ + address + income + debtinc + creddebt + othdebt,data = train_data_bank, size = 5, decay = 0.01, maxit = 200)
+head(ann_model)
+```
+
+
+### Validasi
+
+```{r}
+ANNpred_train <- predict(ann_model, train_data_bank, type="class")
+head(ANNpred_train)
+tail(ANNpred_train)
+ANNpred_test <- predict(ann_model, test_data_bank, type="class")
+head(ANNpred_test)
+tail(ANNpred_train)
+```
+
+
+### Evaluasi
+
+```{r}
+# Perbandingan Y aktual dengan Y prediksi
+compare_train_ANN <- data.frame(train_data_bank$default, ANNpred_train, ifelse(train_data_bank$default == ANNpred_train, "BENAR", "SALAH"))
+head(compare_train_ANN)
+colnames(compare_train_ANN) = c("Y aktual", "Y prediksi", "Ket")
+head(compare_train_ANN)
+tail(compare_train_ANN)
+
+compare_test_ANN <- data.frame(test_data_bank$default, ANNpred_test, ifelse(test_data_bank$default == ANNpred_test, "BENAR", "SALAH"))
+head(compare_test_ANN)
+colnames(compare_test_ANN) = c("Y aktual", "Y prediksi", "Ket")
+head(compare_test_ANN)
+tail(compare_test_ANN)
+```
+
+
+### Confusion Matrix
+
+```{r}
+# Confusion Matrix untuk data testing
+confusionMatrix(
+  data = as.factor(ANNpred_test),
+  reference = as.factor(test_data_bank$default),
+  positive = "1"
+)
+
+# Confusion Matrix untuk data training
+confusionMatrix(
+  data = as.factor(ANNpred_train),
+  reference = as.factor(train_data_bank$default),
+  positive = "1"
+)
+```
+
+Interpretasi : 
+
+Model klasifikasi menghasilkan akurasi sebesar 75,18%, namun tidak berbeda signifikan dibandingkan No Information Rate (p-value = 0,136). Nilai Kappa sebesar 0,4217 menunjukkan tingkat kesepakatan sedang. Model memiliki kemampuan yang lebih baik dalam mengklasifikasikan kelas negatif (Specificity = 0,7775) dibandingkan kelas positif (Sensitivity = 0,6821). Nilai precision yang relatif rendah (0,5309) menunjukkan bahwa prediksi kelas positif masih kurang akurat, meskipun prediksi kelas negatif cukup baik (NPV = 0,8689). Selain itu, hasil McNemar’s Test yang signifikan (p-value < 0,05) mengindikasikan adanya ketidakseimbangan kesalahan klasifikasi. Secara keseluruhan, model cukup baik, namun masih perlu perbaikan terutama dalam mendeteksi kelas positif.
+
+
+# 1.2 Model Support Vector Machine (SVM)
+
+Untuk memaikai model SVM (Support Vector Machine) maka harus memakai packages "nnet" dan "e1071"
+
+### Input Data
+
+```{r}
+# Input Data
+data_bank <- read_excel("C:/Users/asus/Downloads/data_pinjaman_bank.xlsx") 
+data_bank <- data.frame(data_bank)
+data_bank$default <- as.factor(data_bank$default)
+head(data_bank)
+```
+
+
+### Cleaning Data
+
+Memastikan dan melihat apakah didalam data_bank terdapat data NULL atau tidak.
+
+```{r}
+## Cleaning Data
+colSums(is.na(data_bank))
+```
+
+
+### Eksplorasi & Visualisasi Data
+
+Untuk melihat Distribusi Data dengan melakukan pengecekan ringkasan statistik menggunakan function "summary()".
+
+```{r}
+summary(data_bank)
+```
+
+
+### Splitting Data/Membuat Data Training dan Data Testing
+
+Pada tahap ini, data dibagi menjadi dua bagian, yaitu data training dan data testing, dengan perbandingan 80:20. Data training akan digunakan untuk melatih model, sedangkan data testing digunakan untuk mengukur performa model terhadap data yang belum pernah dilihat sebelumnya.
+
+```{r}
+set.seed(108)
+train_id <- sample(1:nrow(data_bank), 0.8 * nrow(data_bank))
+train_data_bank<- data_bank[train_id, ] # Data training
+test_data_bank<- data_bank[-train_id, ] # Data testing
+head(train_data_bank) # Data train
+head(test_data_bank) # Data testing
+train_data_bank$default <- as.factor(train_data_bank$default)
+test_data_bank$default <- as.factor(test_data_bank$default)
+```
+
+
+## Membuat Model SVM
+
+Membuat model Support Vektor Machine dengan data yang digunakan adalah Titanic.
+
+```{r}
+train_data_bank$default <- as.factor(train_data_bank$default)
+
+
+# Buat grid parameter
+tune_grid <- expand.grid(
+  sigma = c(0.01, 0.1, 1),
+  C = c(0.1, 1, 10, 100)
+)
+
+
+# Setup cross-validation 10-fold
+control <- trainControl(method = "cv", number = 10)
+
+# Train model SVM dengan radial basis function (RBF)
+set.seed(123)
+svm_tuned <- train(
+  default ~ age + ed + employ + address + income + debtinc + creddebt + othdebt,
+  data = train_data_bank,
+  method = "svmRadial",
+  trControl = control,
+  tuneGrid = tune_grid,
+  preProcess = c("center", "scale")
+)
+
+
+# Lihat hasil tuning
+print(svm_tuned)
+plot(svm_tuned)
+```
+
+Interpretasi : 
+
+Grafik menunjukkan hubungan antara parameter cost dan sigma terhadap akurasi cross-validation. Terlihat bahwa:
+
+Sigma kecil (0.01) memberikan performa terbaik dan paling stabil (akurasi tertinggi ~0,79)
+Sigma sedang (0.1) performanya menurun saat cost meningkat
+Sigma besar (1) menghasilkan akurasi terendah (cenderung underfitting)
+Nilai cost optimal berada di sekitar 1–10, karena setelah itu akurasi cenderung stagnan atau menurun
+
+Artinya, model terbaik diperoleh saat kompleksitas model cukup (tidak terlalu sederhana atau terlalu kompleks), yaitu pada kombinasi sigma kecil dan cost moderat.
+
+### Validasi
+
+```{r}
+# Prediksi data training
+SVMpred_train <- predict(svm_tuned, newdata = train_data_bank)
+
+# Prediksi data testing
+SVMpred_test <- predict(svm_tuned, newdata = test_data_bank)
+
+# Lihat hasil prediksi
+head(SVMpred_train)
+head(SVMpred_test)
+
+```
+
+
+### Evaluasi 
+
+```{r}
+# Training set comparison
+compare_train_SVM <- data.frame(train_data_bank$default, SVMpred_train,
+                                ifelse(train_data_bank$default == SVMpred_train, "BENAR", "SALAH"))
+colnames(compare_train_SVM) <- c("Y aktual", "Y prediksi", "Ket")
+head(compare_train_SVM)
+
+# Testing set comparison
+compare_test_SVM <- data.frame(test_data_bank$default, SVMpred_test,
+                               ifelse(test_data_bank$default == SVMpred_test, "BENAR", "SALAH"))
+colnames(compare_test_SVM) <- c("Y aktual", "Y prediksi", "Ket")
+head(compare_test_SVM)
+
+```
+
+
+### Confusion Matrix
+
+```{r}
+# Confusion matrix untuk data training
+confusionMatrix(SVMpred_train, train_data_bank$default, positive = "1")
+
+# Confusion matrix untuk data testing
+confusionMatrix(SVMpred_test, test_data_bank$default, positive = "1")
+```
+
+Interpretasi : 
+
+Model SVM pada data testing menghasilkan akurasi sebesar 81,43%, namun tidak berbeda signifikan dari No Information Rate (p-value = 0,133). Nilai Kappa sebesar 0,4226 menunjukkan kesepakatan sedang. Model memiliki specificity tinggi (0,9167) tetapi sensitivity rendah (0,4688), yang berarti model jauh lebih baik dalam mendeteksi kelas negatif dibandingkan kelas positif. Secara keseluruhan, meskipun akurasi cukup tinggi, model masih kurang optimal dalam mengidentifikasi kelas positif.
+
+# 1.3 Model Decision Tree
+
+Untuk memaikai model Desicion Tree maka harus memakai packages "rpart"
+
+
+```{r}
+# Input Data
+data_bank <- read_excel("C:/Users/asus/Downloads/data_pinjaman_bank.xlsx") 
+data_bank <- data.frame(data_bank)
+data_bank$default <- as.factor(data_bank$default)
+head(data_bank)
+```
+
+
+### Cleaning Data
+
+Memastikan dan melihat apakah didalam data_bank terdapat data NULL atau tidak.
+
+```{r}
+## Cleaning Data
+colSums(is.na(data_bank))
+```
+
+
+### Eksplorasi & Visualisasi Data
+
+Untuk melihat Distribusi Data dengan melakukan pengecekan ringkasan statistik menggunakan function "summary()".
+
+```{r}
+summary(data_bank)
+```
+
+
+### Splitting Data/Membuat Data Training dan Data Testing
+
+Pada tahap ini, data dibagi menjadi dua bagian, yaitu data training dan data testing, dengan perbandingan 80:20. Data training akan digunakan untuk melatih model, sedangkan data testing digunakan untuk mengukur performa model terhadap data yang belum pernah dilihat sebelumnya.
+
+```{r}
+set.seed(108)
+train_id <- sample(1:nrow(data_bank), 0.8 * nrow(data_bank))
+train_data_bank<- data_bank[train_id, ] # Data training
+test_data_bank<- data_bank[-train_id, ] # Data testing
+head(train_data_bank) # Data train
+head(test_data_bank) # Data testing
+train_data_bank$default <- as.factor(train_data_bank$default)
+test_data_bank$default <- as.factor(test_data_bank$default)
+```
+
+
+
+## Membuat Model Decision Tree
+
+Membuat model Decision Tree dengan data yang digunakan adalah Data Peminjaman Bank.
+
+```{r}
+tree_model <- rpart(default ~ age + ed + employ + address + income + debtinc + creddebt + othdebt,
+                    data = train_data_bank, method = "class")
+tree_model
+```
+
+
+### Validasi
+
+```{r}
+tree_pred_train <- predict(tree_model, train_data_bank, type = "class")
+head(tree_pred_train)
+tree_pred_test  <- predict(tree_model, test_data_bank, type = "class")
+head(tree_pred_test)
+```
+
+
+### Evaluasi 
+
+```{r}
+# Evaluasi Decision Tree - Data Training
+compare_train_tree <- data.frame(
+  "Y aktual" = train_data_bank$default,
+  "Y prediksi" = tree_pred_train,
+  "Keterangan" = ifelse(train_data_bank$default == tree_pred_train, "BENAR", "SALAH")
+)
+
+# Evaluasi Decision Tree - Data Testing
+compare_test_tree <- data.frame(
+  "Y aktual" = test_data_bank$default,
+  "Y prediksi" = tree_pred_test,
+  "Keterangan" = ifelse(test_data_bank$default == tree_pred_test, "BENAR", "SALAH")
+)
+
+head(compare_train_tree)
+head(compare_test_tree)
+```
+
+
+### Confusion Matrix
+
+```{r}
+# Training
+confusionMatrix(tree_pred_train, train_data_bank$default, positive = "1")
+
+# Testing
+confusionMatrix(tree_pred_test, test_data_bank$default, positive = "1")
+
+```
+
+Interpretasi : 
+
+Model Decision Tree menghasilkan akurasi sebesar 81,43%, namun tidak berbeda signifikan dari No Information Rate (p-value = 0,133). Nilai Kappa sebesar 0,4083 menunjukkan tingkat kesepakatan sedang. Model memiliki specificity tinggi (0,9259) tetapi sensitivity rendah (0,4375), yang berarti model lebih baik dalam mengklasifikasikan kelas negatif dibandingkan kelas positif. Secara keseluruhan, performa model cukup baik dari sisi akurasi, namun masih lemah dalam mendeteksi kelas positif. Dibandingkan SVM sebelumnya, performa Decision Tree mirip (akurasi sama) tetapi sedikit lebih rendah dalam mendeteksi kelas positif (sensitivity lebih kecil).
+
+# 1.4 Model Random Forest
+
+Untuk memaikai model Desicion Tree maka harus memakai packages "randomForest"
+
+### Input Data 
+
+```{r}
+# Input Data
+data_bank <- read_excel("C:/Users/asus/Downloads/data_pinjaman_bank.xlsx") 
+data_bank <- data.frame(data_bank)
+data_bank$default <- as.factor(data_bank$default)
+head(data_bank)
+```
+
+### Cleaning Data
+
+Memastikan dan melihat apakah didalam data_bank terdapat data NULL atau tidak.
+
+```{r}
+## Cleaning Data
+colSums(is.na(data_bank))
+```
+
+
+### Eksplorasi & Visualisasi Data
+
+Untuk melihat Distribusi Data dengan melakukan pengecekan ringkasan statistik menggunakan function "summary()".
+
+```{r}
+summary(data_bank)
+```
+
+### Splitting Data/Membuat Data Training dan Data Testing
+
+Pada tahap ini, data dibagi menjadi dua bagian, yaitu data training dan data testing, dengan perbandingan 80:20. Data training akan digunakan untuk melatih model, sedangkan data testing digunakan untuk mengukur performa model terhadap data yang belum pernah dilihat sebelumnya.
+
+```{r}
+set.seed(108)
+train_id <- sample(1:nrow(data_bank), 0.8 * nrow(data_bank))
+train_data_bank<- data_bank[train_id, ] # Data training
+test_data_bank<- data_bank[-train_id, ] # Data testing
+head(train_data_bank) # Data train
+head(test_data_bank) # Data testing
+train_data_bank$default <- as.factor(train_data_bank$default)
+test_data_bank$default <- as.factor(test_data_bank$default)
+```
+
+## Membuat Model Random Forest
+
+Membuat Model Random Forest dengan data yang digunakan adalah Data Peminjaman Bank.
+
+```{r}
+rf_model <- randomForest(default ~ age + ed + employ + address + income + debtinc + creddebt + othdebt,
+                         data = train_data_bank, ntree = 100)
+
+rf_model
+```
+
+### Validasi
+
+```{r}
+rf_pred_train <- predict(rf_model, train_data_bank)
+head(rf_pred_train)
+rf_pred_test  <- predict(rf_model, test_data_bank)
+head(rf_pred_test)
+
+```
+
+
+### Evaluasi 
+
+```{r}
+# Evaluasi Random Forest - Data Training
+compare_train_rf <- data.frame(
+  "Y aktual" = train_data_bank$default,
+  "Y prediksi" = rf_pred_train,
+  "Keterangan" = ifelse(train_data_bank$default == rf_pred_train, "BENAR", "SALAH")
+)
+
+# Evaluasi Random Forest - Data Testing
+compare_test_rf <- data.frame(
+  "Y aktual" = test_data_bank$default,
+  "Y prediksi" = rf_pred_test,
+  "Keterangan" = ifelse(test_data_bank$default == rf_pred_test, "BENAR", "SALAH")
+)
+
+head(compare_train_rf)
+head(compare_test_rf)
+```
+
+### Confusion Matrix
+
+```{r}
+# Training
+confusionMatrix(rf_pred_train, train_data_bank$default, positive = "1")
+
+# Testing
+confusionMatrix(rf_pred_test, test_data_bank$default, positive = "1")
+
+```
+
+Interpretasi : 
+
+Model Random Forest menghasilkan akurasi sebesar 80,71%, namun tidak berbeda signifikan dari No Information Rate (p-value = 0,183). Nilai Kappa sebesar 0,3931 menunjukkan tingkat kesepakatan sedang. Model memiliki specificity tinggi (0,9167) tetapi sensitivity rendah (0,4375), yang menunjukkan bahwa model lebih baik dalam mengklasifikasikan kelas negatif dibandingkan kelas positif. Secara keseluruhan, performa model cukup baik, namun masih kurang optimal dalam mendeteksi kelas positif. Dibandingkan Decision Tree dan SVM, Random Forest memiliki akurasi sedikit lebih rendah dan tidak menunjukkan peningkatan signifikan, terutama pada kemampuan mendeteksi kelas positif.
+
+
+#1.5 Hasil Perbandingan Setiap Model
+
+```{r}
+# Samakan level faktor pada prediksi dan data asli
+ANNpred_test <- factor(ANNpred_test, levels = c("0", "1"))
+test_data_bank$default <- factor(test_data_bank$default, levels = c("0", "1"))
+
+
+cm_ANN <- confusionMatrix(ANNpred_test, test_data_bank$default, positive = "1")
+cm_SVM <- confusionMatrix(SVMpred_test, test_data_bank$default, positive = "1")
+cm_TREE <- confusionMatrix(tree_pred_test, test_data_bank$default, positive = "1")
+cm_RF <- confusionMatrix(rf_pred_test, test_data_bank$default, positive = "1")
+
+# Buat fungsi untuk ambil metrik
+ambil_metrik <- function(cm, nama_model) {
+  precision <- cm$byClass["Pos Pred Value"]
+  recall <- cm$byClass["Sensitivity"]
+  f1 <- 2 * (precision * recall) / (precision + recall)
+  
+  return(data.frame(
+    Model = nama_model,
+    Akurasi = round(cm$overall["Accuracy"], 4),
+    Presisi = round(precision, 4),
+    Recall = round(recall, 4),
+    F1_Score = round(f1, 4)
+  ))
+}
+# Gabungkan hasil semua model
+hasil_perbandingan <- rbind(
+  ambil_metrik(cm_ANN, "ANN"),
+  ambil_metrik(cm_SVM, "SVM"),
+  ambil_metrik(cm_TREE, "Decision Tree"),
+  ambil_metrik(cm_RF, "Random Forest")
+)
+
+rownames(hasil_perbandingan) <- NULL
+
+
+# Tampilkan tabel
+knitr::kable(hasil_perbandingan, caption = "Perbandingan Kinerja Model pada Data Testing")
+```
+
+### KESIMPULAN 
+
+Berdasarkan evaluasi pada data testing, SVM dan Decision Tree menunjukkan akurasi tertinggi (81,43%), diikuti oleh Random Forest (80,71%) dan ANN (72,14%). Namun, ketika mempertimbangkan keseimbangan antara precision dan recall melalui F1-Score, SVM memberikan performa terbaik (0,5357), sehingga dipilih sebagai model yang paling optimal. Meskipun demikian, seluruh model menunjukkan recall yang relatif rendah, yang mengindikasikan keterbatasan dalam mendeteksi kelas positif. Hal ini penting secara praktis karena kesalahan dalam mendeteksi kasus positif dapat berdampak lebih besar dibandingkan kesalahan pada kelas negatif, tergantung konteks aplikasi. Temuan ini mengindikasikan adanya potensi class imbalance, sehingga model cenderung bias terhadap kelas mayoritas. Oleh karena itu, peningkatan performa dapat dilakukan melalui pendekatan seperti resampling (SMOTE/undersampling), penyesuaian threshold, atau cost-sensitive learning untuk meningkatkan kemampuan deteksi kelas positif.
+
+Secara keseluruhan, SVM dipilih sebagai model terbaik dalam studi kasus ini karena memberikan trade-off performa yang paling seimbang, namun masih memerlukan optimasi lebih lanjut agar lebih robust.
