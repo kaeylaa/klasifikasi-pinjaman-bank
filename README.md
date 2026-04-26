@@ -82,3 +82,11 @@ F. Insight
 - ANN mampu menangkap pola kompleks  
 
 ---
+
+Lihat Selengkapnya 
+
+<p align="center">
+  <a href="http://rpubs.com/kaeyla_3/bank-loan-ml">
+    <img src="https://img.shields.io/badge/View%20Full%20Report-RPubs-pink?style=for-the-badge">
+  </a>
+</p>
